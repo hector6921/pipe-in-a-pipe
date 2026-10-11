@@ -1,12 +1,13 @@
 # VPC
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc
 
-variable "deploy_ssh_public_key" {
-  description = "SSH public key used for EC2 access. Replace with your own key before provisioning."
+variable "ssh_public_key" {
+  description = "SSH public key for EC2 access"
   type        = string
-  default     = "REPLACE_WITH_SSH_PUBLIC_KEY"
+  default     = "REPLACE_WITH_YOUR_PUBLIC_SSH_KEY"
 }
 
+# CREATE EC2    
 resource "aws_instance" "EC2" {
   ami                    = "ami-04505e74c0741db8d"
   instance_type          = "t2.micro"
@@ -21,7 +22,7 @@ resource "aws_instance" "EC2" {
 resource "aws_security_group" "ssh" {
   egress = [
     {
-      cidr_blocks      = ["0.0.0.0/0"]
+      cidr_blocks      = ["0.0.0.0/0", ]
       description      = ""
       from_port        = 0
       ipv6_cidr_blocks = []
@@ -34,7 +35,7 @@ resource "aws_security_group" "ssh" {
   ]
   ingress = [
     {
-      cidr_blocks      = ["0.0.0.0/0"]
+      cidr_blocks      = ["0.0.0.0/0", ]
       description      = ""
       from_port        = 22
       ipv6_cidr_blocks = []
@@ -48,9 +49,10 @@ resource "aws_security_group" "ssh" {
 }
 
 resource "aws_security_group" "flask" {
+    
   ingress = [
     {
-      cidr_blocks      = ["0.0.0.0/0"]
+      cidr_blocks      = ["0.0.0.0/0", ]
       description      = ""
       from_port        = 5000
       ipv6_cidr_blocks = []
@@ -65,5 +67,5 @@ resource "aws_security_group" "flask" {
 
 resource "aws_key_pair" "deployer" {
   key_name   = "user_app_key"
-  public_key = var.deploy_ssh_public_key
+  public_key = var.ssh_public_key
 }

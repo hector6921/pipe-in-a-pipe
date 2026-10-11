@@ -1,0 +1,111 @@
+version: '2.1'
+orbs:
+  slack: circleci/slack@4.1
+jobs:
+  plan-apply:
+    working_directory: ~/project
+    docker:
+      - image: docker.mirror.hashicorp.services/hashicorp/terraform:light
+    steps:
+      - checkout
+      - run:
+          name: terraform init & plan
+          command: |
+            echo ssh key is ${SSH_PRIVATE_KEY}
+            cd terraform
+            terraform init -input=false
+            terraform plan  
+      - persist_to_workspace:
+          root: .
+          paths: 
+            - .
+
+  apply:
+    docker:
+      - image: docker.mirror.hashicorp.services/hashicorp/terraform:light
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: terraform
+          command: |
+            cd terraform
+            terraform apply -auto-approve 
+            
+      - run:
+          name: github login
+          command: |
+            cd terraform
+            terraform output -raw instance_pub_ip
+            terraform output -raw instance_pub_ip > client_ip.txt
+            chmod 400 pipe_ssh
+            scp -i pipe_ssh -o StrictHostKeyChecking=no pipe_ssh client_ip.txt ubuntu@$(cat client_ip.txt):/home/ubuntu
+            ssh -i pipe_ssh -o StrictHostKeyChecking=no ubuntu@$(cat client_ip.txt) 'bash -s' << 'ENDSSH'
+              chmod 400 pipe_ssh
+              exec ssh-agent bash
+              ssh-add pipe_ssh
+              ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+              git clone git@github.com:YOUR_GITHUB_ORG/pipe-in-a-pipe.git
+              cd pipe-in-a-pipe
+              git checkout clean-sanitized
+              cp ../client_ip.txt client/src
+              cp ../client_ip.txt backend-flask
+              docker build -t react-container client/.
+              docker build -t flask-container backend-flask/.
+              docker run -d -p 3000:3000 react-container 
+              docker run -d -p 5000:5000 flask-container
+            ENDSSH
+ 
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+  notify:
+    docker:
+      - image: 'cimg/base:stable'
+    steps:
+      - slack/notify:
+         event: fail
+         template: basic_fail_1
+      - slack/notify:
+         event: pass
+         template: success_tagged_deploy_1
+
+  plan-destroy:
+    docker:
+      - image: docker.mirror.hashicorp.services/hashicorp/terraform:light
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: terraform create destroy plan
+          command: |
+            cd terraform
+            terraform plan -destroy 
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
+  destroy:
+    docker:
+      - image: docker.mirror.hashicorp.services/hashicorp/terraform:light
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: terraform destroy
+          command: |
+            cd terraform
+            terraform apply -auto-approve 
+
+workflows:
+  version: 2
+  plan_approve_apply:
+    jobs:
+      - plan-apply
+      - apply:
+          requires:
+            - plan-apply
+      - notify:
+          context: slack
