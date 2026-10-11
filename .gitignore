@@ -1,0 +1,12 @@
+venv/
+node_modules/
+.env
+.env.local
+.env.*
+*.pem
+*.key
+*.pub
+*.p12
+*.crt
+__pycache__/
+.DS_Store
