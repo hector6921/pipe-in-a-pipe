@@ -9,18 +9,18 @@ import handler
 application = Flask(__name__)
 CORS(application)
 socketio = SocketIO(application=application, cors_allowed_origins='*')
-application.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-key')
+application.secret_key = os.environ.get('FLASK_SECRET_KEY', 'replace-with-random-secret')
 session_data = {"auth_token": "", "user": ""}
 client_ip = os.environ.get('CLIENT_IP', 'localhost')
 
 profile_data = []
 
-@application.route('/dashboard', methods=["GET"])
+@application.route('/dashboard', methods=['GET'])
 @cross_origin()
 def display_dashboard():
-    user_info = handler.get_user_info(session_data["auth_token"])
-    session_data["user"] = user_info[2]
-    user_repos = handler.get_repos(session_data["auth_token"], session_data["user"])
+    user_info = handler.get_user_info(session_data['auth_token'])
+    session_data['user'] = user_info[2]
+    user_repos = handler.get_repos(session_data['auth_token'], session_data['user'])
     return {"user_info": user_info, "repos": user_repos, "status": 200}
 
 @application.route('/getGithubToken')
